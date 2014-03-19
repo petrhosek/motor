@@ -4,7 +4,8 @@ author: Petr Hosek
 description: Reimplementation of engine.io in Dart
 homepage: http://github.com/petrh/motor
 dependencies:
-  unittest: '>=0.4.3'
-  http: '>=0.4.3'
+  unittest: any
+  http: any
+  browser: any
   benchmark_harness: '>=1.0.0 <2.0.0'
-  logging: '>=0.4.3'
+  logging: any

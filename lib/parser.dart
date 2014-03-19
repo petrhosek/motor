@@ -1,4 +1,44 @@
-library parser;
+library motor.parser;
+
+abstract class PacketType {
+  static const int OPEN = 0;
+  static const int CLOSE = 1;
+  static const int PING = 2;
+  static const int PONG = 3;
+  static const int MESSAGE = 4;
+  static const int UPGRADE = 5;
+  static const int NOOP = 6;
+}
+
+class Packet {
+  static const int OPEN = 0;
+  static const int CLOSE = 1;
+  static const int PING = 2;
+  static const int PONG = 3;
+  static const int MESSAGE = 4;
+  static const int UPGRADE = 5;
+  static const int NOOP = 6;
+  
+  final int type;
+  final dynamic data;
+  
+  const Packet(this.type, [this.data]);
+  
+  Packet.from(Map<String, dynamic> map) :
+    type = map['type'], data = map['data'];
+  
+  int get hashCode {
+    int result = 17;
+    result = 37 * result + type.hashCode;
+    result = 37 * result + data.hashCode;
+    return result;
+  }
+  
+  bool operator==(other) {
+    if (identical(other, this)) return true;
+    return (other.type == type && other.data == data);
+  }
+}
 
 class Parser {
   /// Protocol version
@@ -17,7 +57,7 @@ class Parser {
   static final packetslist = new List.from(packets.keys);
   
   /// Premade error packet
-  static final err = { 'type': 'error', 'data': 'parser error' };
+  static const Packet err = const Packet(-1, 'parser error');
  
   /**
    * Encodes a [packet].
@@ -31,27 +71,25 @@ class Parser {
    *     4
    *
    */
-  static String encodePacket(Map<String, dynamic> packet) {
-    StringBuffer encoded = new StringBuffer(packets[packet['type']]);
-
+  static String encodePacket(Packet packet) {
+    StringBuffer encoded = new StringBuffer(packet.type);
     // data fragment is optional
-    if (packet['data'] != null) {
-      encoded.write(packet['data']);
+    if (packet.data != null) {
+      encoded.write(packet.data);
     }
-
     return encoded.toString();
   }
 
   /**
    * Decodes a packet [data].
    */
-  static Map<String, dynamic> decodePacket(String data) {
+  static Packet decodePacket(String data) {
     try {
       int type = int.parse(data[0]);
       if (data.length > 1) {
-        return { 'type': packetslist[type], 'data': data.substring(1) };
+        return new Packet(type, data.substring(1));
       } else {
-        return { 'type': packetslist[type] };
+        return new Packet(type);
       }
     } on FormatException {
       return err;
@@ -70,36 +108,27 @@ class Parser {
    *     11:hello world2:hi
    *
    */
-  static String encodePayload(List packets) {
-    if (packets.isEmpty) {
-      return '0:';
-    }
+  static String encodePayload(List<Packet> packets) {
+    if (packets.isEmpty) return '0:';
 
     StringBuffer encoded = new StringBuffer();
-
-    for (int i = 0; i < packets.length; i++) {
+    for (var i = 0; i < packets.length; i++) {
       String message = encodePacket(packets[i]);
       encoded.write('${message.length}:$message');
     }
-
     return encoded.toString();
   }
 
   /**
    * Decodes [data] when a payload is maybe expected.
    */
-  static decodePayload(String data, bool callback(packet, index, total)) {
-    Map<String, dynamic> packet;
-    if (data.isEmpty) {
-      // parser error - ignoring payload
-      return callback(err, 0, 1);
-    }
+  static decodePayload(String data, callback(packet, index, total)) {
+    if (data.isEmpty) return callback(err, 0, 1);
 
     String length = '';
     for (int i = 0; i < data.length; i++) {
       String chr = data[i];
-
-      if (':' != chr) {
+      if (chr != ':') {
         length += chr;
       } else {
         int n;
@@ -114,17 +143,15 @@ class Parser {
         }
         
         String message = data.substring(i + 1, i + 1 + n);
-
         if (message.length > 0) {
-          packet = decodePacket(message);
-
-          if (err['type'] == packet['type'] && err['data'] == packet['data']) {
+          Packet packet = decodePacket(message);
+          if (packet == err) {
             // parser error in individual packet - ignoring payload
             return callback(err, 0, 1);
           }
 
-          bool ret = callback(packet, i + n, data.length);
-          if (!ret) return;
+          var ret = callback(packet, i + n, data.length);
+          if (ret != null) return;
         }
 
         // advance cursor

@@ -8,57 +8,57 @@ main() {
   group('packets', () {
     group('basic functionality', () {
       test('should encode packets as strings', () {
-        expect(Parser.encodePacket({ 'type': 'message', 'data': 'test' }), new isInstanceOf<String>());
+        expect(Parser.encodePacket(new Packet(Packet.MESSAGE, 'test')), new isInstanceOf<String>());
       });
 
-      test('should decode packets as objects', () {
-        expect(Parser.decodePacket(Parser.encodePacket({ 'type': 'message', 'data': 'test' })), new isInstanceOf<Object>());
+      test('should decode strings as packets', () {
+        expect(Parser.decodePacket(Parser.encodePacket(new Packet(Packet.MESSAGE, 'test'))), new isInstanceOf<Packet>());
       });
     });
 
     group('encoding and decoding', () {
       test('should allow no data', () {
-        expect(Parser.decodePacket(Parser.encodePacket({ 'type': 'message' })), equals({ 'type': 'message' }));
+        expect(Parser.decodePacket(Parser.encodePacket(new Packet(Packet.MESSAGE))), equals(new Packet(Packet.MESSAGE)));
       });
 
       test('should encode an open packet', () {
-        expect(Parser.decodePacket(Parser.encodePacket({ 'type': 'open', 'data': '{"some":"json"}' })),
-            equals({ 'type': 'open', 'data': '{"some":"json"}' }));
+        expect(Parser.decodePacket(Parser.encodePacket(new Packet(Packet.OPEN, '{"some":"json"}'))),
+            equals(new Packet(Packet.OPEN, '{"some":"json"}')));
       });
 
       test('should encode a close packet', () {
-        expect(Parser.decodePacket(Parser.encodePacket({ 'type': 'close' })),
-            equals({ 'type': 'close' }));
+        expect(Parser.decodePacket(Parser.encodePacket(new Packet(Packet.CLOSE))),
+            equals(new Packet(Packet.CLOSE)));
       });
 
       test('should encode a ping packet', () {
-        expect(Parser.decodePacket(Parser.encodePacket({ 'type': 'ping', 'data': '1' })),
-            equals({ 'type': 'ping', 'data': '1' }));
+        expect(Parser.decodePacket(Parser.encodePacket(new Packet(Packet.PING, '1'))),
+            equals(new Packet(Packet.PING, '1')));
       });
 
       test('should encode a pong packet', () {
-        expect(Parser.decodePacket(Parser.encodePacket({ 'type': 'pong', 'data': '1' })),
-            equals({ 'type': 'pong', 'data': '1' }));
+        expect(Parser.decodePacket(Parser.encodePacket(new Packet(Packet.PONG, '1'))),
+            equals(new Packet(Packet.PONG, '1')));
       });
 
       test('should encode a message packet', () {
-        expect(Parser.decodePacket(Parser.encodePacket({ 'type': 'message', 'data': 'aaa' })),
-            equals({ 'type': 'message', 'data': 'aaa' }));
+        expect(Parser.decodePacket(Parser.encodePacket(new Packet(Packet.MESSAGE, 'aaa'))),
+            equals(new Packet(Packet.MESSAGE, 'aaa')));
       });
 
       test('should encode a message packet coercing to string', () {
-        expect(Parser.decodePacket(Parser.encodePacket({ 'type': 'message', 'data': 1 })),
-            equals({ 'type': 'message', 'data': '1' }));
+        expect(Parser.decodePacket(Parser.encodePacket(new Packet(Packet.MESSAGE, 1))),
+            equals(new Packet(Packet.MESSAGE, '1')));
       });
 
       test('should encode an upgrade packet', () {
-        expect(Parser.decodePacket(Parser.encodePacket({ 'type': 'upgrade' })),
-            equals({ 'type': 'upgrade' }));
+        expect(Parser.decodePacket(Parser.encodePacket(new Packet(Packet.UPGRADE))),
+            equals(new Packet(Packet.UPGRADE)));
       });
 
       test('should match the encoding format', () {
-        expect(Parser.encodePacket({ 'type': 'message', 'data': 'test' }), matches(r'^[0-9]'));
-        expect(Parser.encodePacket({ 'type': 'message' }), matches(r'^[0-9]$'));
+        expect(Parser.encodePacket(new Packet(Packet.MESSAGE, 'test')), matches(r'^[0-9]'));
+        expect(Parser.encodePacket(new Packet(Packet.MESSAGE)), matches(r'^[0-9]$'));
       });
     });
 
@@ -78,7 +78,7 @@ main() {
   group('payloads', () {
     group('basic functionality', () {
       test('should encode payloads as strings', () {
-        expect(Parser.encodePayload([{ 'type': 'ping' }, { 'type': 'post' }]), new isInstanceOf<String>());
+        expect(Parser.encodePayload([new Packet(Packet.PING), new Packet(Packet.PONG)]), new isInstanceOf<String>());
       });
     });
 
@@ -102,7 +102,8 @@ main() {
 
       test('should encode/decode empty payloads', () {
         Parser.decodePayload(Parser.encodePayload([]), (packet, index, total) {
-          expect(packet['type'], equals('open'));
+          // TODO: should not be called
+          expect(packet.type, equals(Packet.OPEN));
           var isLast = index + 1 == total;
           expect(isLast, isTrue);
         });
